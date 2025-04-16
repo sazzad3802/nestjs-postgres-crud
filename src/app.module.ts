@@ -16,17 +16,29 @@ import * as path from 'path';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({ 
-        type: 'postgres',
-        host: configService.get<string>('DATABASE_HOST'),
-        port: configService.get<number>('DATABASE_PORT'),
-        username: configService.get<string>('DATABASE_USER'),
-        password: configService.get<string>('DATABASE_PASSWORD'),
-        database: configService.get<string>('DATABASE_NAME'),
-        synchronize: process.env.NODE_ENV !== 'production',
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-        autoLoadEntities: true,
-      }),
+      useFactory: (configService: ConfigService) => {
+        const baseConfig = configService.get('DATABASE_URL') 
+          ? { url: configService.get('DATABASE_URL') } 
+          : {
+              host: configService.get('DATABASE_HOST'),
+              port: configService.get('DATABASE_PORT'),
+              username: configService.get('DATABASE_USER'),
+              password: configService.get('DATABASE_PASSWORD'),
+              database: configService.get('DATABASE_NAME'),
+            };
+    
+        return {
+          type: 'postgres',
+          ...baseConfig,
+          synchronize: configService.get('NODE_ENV') !== 'production',
+          ssl: configService.get('NODE_ENV') === 'production' 
+            ? { rejectUnauthorized: false } 
+            : false,
+          autoLoadEntities: true,
+          retryDelay: 3000,
+          retryAttempts: 5,
+        };
+      },
     }),
     UserModule,
   ],
